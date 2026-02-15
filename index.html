@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Image to Word Generator</title>
+
+<!-- Stable docx CDN -->
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    text-align: center;
+    padding: 40px;
+    color: white;
+}
+
+.container {
+    background: white;
+    color: black;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 500px;
+    margin: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+input[type="file"] {
+    margin: 15px 0;
+}
+
+button {
+    background: #2a5298;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background: #1e3c72;
+}
+
+/* Progress Bar */
+.progress-container {
+    margin-top: 20px;
+    width: 100%;
+    background: #ddd;
+    border-radius: 20px;
+    overflow: hidden;
+    height: 20px;
+    display: none;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #1e3c72, #2a5298);
+    transition: width 0.3s ease;
+}
+
+.status-text {
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+#downloadBtn {
+    display: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>📄 Image to Word Generator</h1>
+    
+    <input type="file" id="imageUpload" multiple accept="image/*">
+    <br>
+    <button onclick="generateWord()">Generate Word File</button>
+
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="status-text" id="statusText"></div>
+
+    <button id="downloadBtn">Download Word File</button>
+</div>
+
+<script>
+let generatedBlob = null;
+
+async function generateWord() {
+
+    if (typeof docx === "undefined") {
+        alert("docx library failed to load. Please check your internet connection.");
+        return;
+    }
+
+    const { Document, Packer, Paragraph, ImageRun, AlignmentType } = docx;
+
+    const input = document.getElementById("imageUpload");
+    const files = input.files;
+
+    if (files.length === 0) {
+        alert("Please upload at least one image.");
+        return;
+    }
+
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+    const statusText = document.getElementById("statusText");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    downloadBtn.style.display = "none";
+    progressContainer.style.display = "block";
+    progressBar.style.width = "0%";
+    statusText.innerText = "Starting...";
+
+    const doc = new Document({
+        sections: []
+    });
+
+    const total = files.length;
+
+    for (let i = 0; i < total; i++) {
+
+        const file = files[i];
+        const arrayBuffer = await file.arrayBuffer();
+
+        doc.addSection({
+            properties: {},
+            children: [
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                        new ImageRun({
+                            data: arrayBuffer,
+                            transformation: {
+                                width: 500,
+                                height: 400
+                            }
+                        })
+                    ]
+                })
+            ]
+        });
+
+        const percent = Math.round(((i + 1) / total) * 100);
+        progressBar.style.width = percent + "%";
+        statusText.innerText = `Processing image ${i + 1} of ${total} (${percent}%)`;
+    }
+
+    statusText.innerText = "Generating Word file...";
+    progressBar.style.width = "100%";
+
+    generatedBlob = await Packer.toBlob(doc);
+
+    statusText.innerText = "File ready to download ✅";
+    downloadBtn.style.display = "inline-block";
+}
+
+document.getElementById("downloadBtn").addEventListener("click", function() {
+    if (!generatedBlob) return;
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(generatedBlob);
+    link.download = "GeneratedImages.docx";
+    link.click();
+});
+</script>
+
+</body>
+</html>
